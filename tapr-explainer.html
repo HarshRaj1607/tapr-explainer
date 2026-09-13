@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teaching a Model to Reason — a gentle walk to TAPR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF6EC;
+    --panel:#F1E9D8;
+    --panel-2:#EAE0CB;
+    --ink:#20242E;
+    --ink-soft:#57596b;
+    --trail:#C17A2E;
+    --trail-soft:#e7c592;
+    --hit:#3E7C59;
+    --hit-soft:#cfe3d5;
+    --miss:#AB3B3B;
+    --miss-soft:#f0d3d0;
+    --line:#DCCFAF;
+    --max:720px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:17px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    line-height:1.15;
+    margin:0 0 .5em 0;
+    letter-spacing:-0.01em;
+  }
+  p{margin:0 0 1em 0;}
+  .wrap{max-width:var(--max); margin:0 auto; padding:0 24px;}
+  a{color:var(--trail);}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:90px 24px 70px;
+    text-align:left;
+    border-bottom:1px solid var(--line);
+  }
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--trail);
+    margin-bottom:18px;
+  }
+  .hero h1{
+    font-size:clamp(34px,6vw,52px);
+    max-width:600px;
+  }
+  .hero p.lede{
+    max-width:520px;
+    font-size:19px;
+    color:var(--ink-soft);
+  }
+  .hero-diagram{margin-top:48px;}
+  .path-caption{
+    display:flex; justify-content:space-between; max-width:560px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  /* ---------- TRAIL LAYOUT ---------- */
+  .trail{position:relative; padding:20px 24px 40px;}
+  .stop{
+    position:relative;
+    max-width:var(--max);
+    margin:0 auto 6px;
+    padding:56px 0 56px 56px;
+  }
+  .stop::before{ /* vertical trail line */
+    content:"";
+    position:absolute;
+    left:19px; top:0; bottom:-6px;
+    width:2px;
+    background:repeating-linear-gradient(to bottom, var(--trail-soft) 0 6px, transparent 6px 12px);
+  }
+  .stop:last-of-type::before{ bottom:50%; }
+  .stop-badge{
+    position:absolute; left:0; top:56px;
+    width:40px; height:40px;
+    border-radius:50%;
+    background:var(--paper);
+    border:2px solid var(--trail);
+    color:var(--trail);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:500; font-size:15px;
+    z-index:2;
+  }
+  .stop h2{font-size:clamp(22px,3.4vw,28px); margin-bottom:14px;}
+  .stop .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-transform:none;
+    margin-bottom:8px;
+  }
+  .stop p{color:var(--ink-soft); max-width:600px;}
+  .stop p strong{color:var(--ink); font-weight:600;}
+  .diagram{
+    margin:22px 0 24px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:22px 20px;
+  }
+  .diagram svg{display:block; width:100%; height:auto;}
+  .diagram .cap{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:10px;
+    text-align:center;
+  }
+  .note{
+    background:var(--panel-2);
+    border-left:3px solid var(--trail);
+    padding:12px 16px;
+    border-radius:0 6px 6px 0;
+    font-size:15px;
+    color:var(--ink-soft);
+    max-width:600px;
+  }
+  .note strong{color:var(--ink);}
+
+  /* ---------- CLOSING ---------- */
+  .closing{
+    background:var(--ink);
+    color:var(--paper);
+    padding:70px 24px 80px;
+    margin-top:20px;
+  }
+  .closing .wrap h2{color:var(--paper); font-size:clamp(24px,4vw,32px);}
+  .closing p{color:#c9cad6; max-width:560px;}
+  .closing .glossary{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px 28px;
+    margin:28px 0 36px;
+  }
+  .glossary dt{font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--trail-soft);}
+  .glossary dd{margin:2px 0 0; font-size:14.5px; color:#c9cad6;}
+  .links a{
+    display:inline-block;
+    color:var(--paper);
+    border:1px solid #4a4d5f;
+    padding:9px 16px;
+    border-radius:6px;
+    text-decoration:none;
+    font-size:14.5px;
+    margin:4px 10px 4px 0;
+  }
+  .links a:hover{border-color:var(--trail-soft);}
+  .signoff{
+    margin-top:34px; font-size:13.5px; color:#8b8da0;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  @media (max-width:560px){
+    .hero{padding:60px 20px 50px;}
+    .glossary{grid-template-columns:1fr;}
+    .stop{padding-left:46px;}
+    .stop-badge{width:34px;height:34px;font-size:13px; top:56px;}
+    .stop::before{left:16px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">a gentle walk, top to bottom</div>
+    <h1>Teaching a model to reason, not just to answer</h1>
+    <p class="lede">RL, LoRA, GRPO, and a question that's still open in research — explained from scratch, in the order they'd actually click for you.</p>
+
+    <div class="hero-diagram">
+      <div class="diagram">
+        <svg viewBox="0 0 640 190" xmlns="http://www.w3.org/2000/svg">
+          <text x="10" y="24" font-family="IBM Plex Mono" font-size="12" fill="#57596b">a messy guess</text>
+          <path d="M20 45 Q120 20 180 60 T300 55 T420 90 T560 50" fill="none" stroke="#AB3B3B" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+          <circle cx="20" cy="45" r="5" fill="#20242E"/>
+          <circle cx="560" cy="50" r="7" fill="#3E7C59"/>
+          <text x="575" y="54" font-family="IBM Plex Mono" font-size="12" fill="#3E7C59">42 ✓</text>
+
+          <text x="10" y="110" font-family="IBM Plex Mono" font-size="12" fill="#57596b">a clean chain of reasoning</text>
+          <path d="M20 130 L180 128 L340 145 L500 132 L560 135" fill="none" stroke="#C17A2E" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="20" cy="130" r="5" fill="#20242E"/>
+          <circle cx="180" cy="128" r="4" fill="#C17A2E"/>
+          <circle cx="340" cy="145" r="4" fill="#C17A2E"/>
+          <circle cx="500" cy="132" r="4" fill="#C17A2E"/>
+          <circle cx="560" cy="135" r="7" fill="#3E7C59"/>
+          <text x="575" y="139" font-family="IBM Plex Mono" font-size="12" fill="#3E7C59">42 ✓</text>
+        </svg>
+      </div>
+      <div class="path-caption"><span>same starting question</span><span>same final answer</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ TRAIL ============ -->
+<main class="trail">
+
+  <!-- STOP 1 -->
+  <section class="stop">
+    <div class="stop-badge">1</div>
+    <div class="kicker">the problem</div>
+    <h2>We usually only grade the destination</h2>
+    <p>When a model is trained with reinforcement learning to solve problems, the easiest thing to check is: <strong>did it get the right final answer?</strong> That single check is called the <strong>outcome reward</strong> — one number, at the very end.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 90" xmlns="http://www.w3.org/2000/svg">
+        <line x1="20" y1="45" x2="600" y2="45" stroke="#DCCFAF" stroke-width="2"/>
+        <g>
+          <circle cx="60" cy="45" r="5" fill="#20242E"/>
+          <circle cx="200" cy="45" r="5" fill="#20242E"/>
+          <circle cx="340" cy="45" r="5" fill="#20242E"/>
+          <circle cx="480" cy="45" r="5" fill="#20242E"/>
+          <text x="60" y="70" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">step 1</text>
+          <text x="200" y="70" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">step 2</text>
+          <text x="340" y="70" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">step 3</text>
+          <text x="480" y="70" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">step 4</text>
+        </g>
+        <circle cx="600" cy="45" r="10" fill="#3E7C59"/>
+        <text x="600" y="20" text-anchor="middle" font-family="IBM Plex Mono" font-size="12" fill="#3E7C59">reward ✓</text>
+        <text x="200" y="20" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#c7bfa6">(no reward here)</text>
+      </svg>
+      <div class="cap">every step is invisible to the reward — only the last dot counts</div>
+    </div>
+    <p>This causes two odd things: a model can stumble through nonsense steps, get lucky, and land on the right number — and get full credit. Or it can reason beautifully and slip on one last calculation — and get <em>zero</em> credit. The reward can't tell the difference between "reasoned well" and "got lucky."</p>
+  </section>
+
+  <!-- STOP 2 -->
+  <section class="stop">
+    <div class="stop-badge">2</div>
+    <div class="kicker">the basic idea underneath all of this — reinforcement learning</div>
+    <h2>Try, get scored, adjust, try again</h2>
+    <p>Strip away the jargon and reinforcement learning (RL) is a loop you already know from learning any skill: you <strong>try</strong> something, someone or something tells you <strong>how good that was</strong> (a reward), and you <strong>adjust</strong> so next time leans toward what worked.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 170" xmlns="http://www.w3.org/2000/svg">
+        <rect x="60" y="55" width="150" height="60" rx="8" fill="#EAE0CB" stroke="#C17A2E" stroke-width="1.5"/>
+        <text x="135" y="80" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13" fill="#20242E">the model</text>
+        <text x="135" y="98" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">(the "agent")</text>
+
+        <rect x="430" y="55" width="150" height="60" rx="8" fill="#EAE0CB" stroke="#C17A2E" stroke-width="1.5"/>
+        <text x="505" y="80" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13" fill="#20242E">the judge</text>
+        <text x="505" y="98" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">(gives a reward)</text>
+
+        <path d="M210 70 H430" stroke="#20242E" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+        <text x="320" y="60" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#57596b">an attempt</text>
+
+        <path d="M430 100 H210" stroke="#3E7C59" stroke-width="1.5" fill="none" marker-end="url(#arrowg)"/>
+        <text x="320" y="128" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#3E7C59">a reward, e.g. +1 / −1</text>
+
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#20242E"/></marker>
+          <marker id="arrowg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3E7C59"/></marker>
+        </defs>
+      </svg>
+      <div class="cap">the model nudges itself toward whatever earned the higher reward</div>
+    </div>
+    <p>Everything else in this page — LoRA, GRPO, process rewards — is just a more careful way of running <em>this same loop</em>: who gets scored, when, and how the score is used to nudge the model.</p>
+  </section>
+
+  <!-- STOP 3 -->
+  <section class="stop">
+    <div class="stop-badge">3</div>
+    <div class="kicker">how you "nudge" a giant model cheaply — LoRA</div>
+    <h2>Don't repaint the whole building — clip on small panels</h2>
+    <p>Modern language models have billions of numbers ("weights"). Adjusting all of them every time you want to try an idea is slow and expensive. <strong>LoRA</strong> (Low-Rank Adaptation) freezes the giant model as-is and adds a much smaller set of trainable numbers alongside it — like clipping small, swappable panels onto a building instead of repainting it.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 150" xmlns="http://www.w3.org/2000/svg">
+        <rect x="60" y="20" width="220" height="110" rx="6" fill="#EAE0CB" stroke="#57596b" stroke-width="1.5"/>
+        <text x="170" y="80" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13" fill="#57596b">the frozen model</text>
+        <text x="170" y="98" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#8a8c9c">billions of numbers, untouched</text>
+
+        <rect x="300" y="45" width="70" height="60" rx="6" fill="#fff" stroke="#C17A2E" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="335" y="70" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#C17A2E">small</text>
+        <text x="335" y="85" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#C17A2E">adapter</text>
+
+        <rect x="400" y="20" width="220" height="110" rx="6" fill="#F1E9D8" stroke="#57596b" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <text x="510" y="80" text-anchor="middle" font-family="IBM Plex Sans" font-weight="600" font-size="13" fill="#57596b">same model, new behaviour</text>
+
+        <path d="M280 75 H300" stroke="#20242E" stroke-width="1.5"/>
+        <path d="M370 75 H400" stroke="#20242E" stroke-width="1.5"/>
+      </svg>
+      <div class="cap">only the small adapter is trained — cheap enough to try many ideas</div>
+    </div>
+    <p>Why it matters here: it means you can experiment with different rewards and training setups without retraining a whole model from scratch every time — which is exactly what makes checkpoints like the one below affordable to run as a student.</p>
+  </section>
+
+  <!-- STOP 4 -->
+  <section class="stop">
+    <div class="stop-badge">4</div>
+    <div class="kicker">how the reward actually gets used — GRPO</div>
+    <h2>Judge attempts against their siblings, not an absolute scale</h2>
+    <p>Give the model the <strong>same question</strong> several times, so it produces a small group of different attempts. Score each one, then compare each attempt to the <strong>group's average</strong> — did it do better or worse than its siblings on the exact same problem? That comparison, rather than a raw score, is what pushes the model to change. This is <strong>GRPO</strong> — Group Relative Policy Optimization.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 190" xmlns="http://www.w3.org/2000/svg">
+        <text x="20" y="20" font-family="IBM Plex Mono" font-size="12" fill="#57596b">same question, 5 attempts</text>
+        <line x1="20" y1="150" x2="620" y2="150" stroke="#DCCFAF" stroke-width="1.5"/>
+        <line x1="20" y1="95" x2="620" y2="95" stroke="#C17A2E" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <text x="625" y="99" font-family="IBM Plex Mono" font-size="11" fill="#C17A2E">avg</text>
+
+        <g font-family="IBM Plex Mono" font-size="11" fill="#57596b" text-anchor="middle">
+          <rect x="55" y="60" width="14" height="90" fill="#f0d3d0"/>
+          <circle cx="62" cy="60" r="5" fill="#AB3B3B"/>
+          <text x="62" y="172">attempt A</text>
+
+          <rect x="175" y="30" width="14" height="120" fill="#cfe3d5"/>
+          <circle cx="182" cy="30" r="5" fill="#3E7C59"/>
+          <text x="182" y="172">attempt B</text>
+
+          <rect x="295" y="80" width="14" height="70" fill="#f0d3d0"/>
+          <circle cx="302" cy="80" r="5" fill="#AB3B3B"/>
+          <text x="302" y="172">attempt C</text>
+
+          <rect x="415" y="45" width="14" height="105" fill="#cfe3d5"/>
+          <circle cx="422" cy="45" r="5" fill="#3E7C59"/>
+          <text x="422" y="172">attempt D</text>
+
+          <rect x="535" y="93" width="14" height="57" fill="#e8dcc4"/>
+          <circle cx="542" cy="93" r="5" fill="#C17A2E"/>
+          <text x="542" y="172">attempt E</text>
+        </g>
+      </svg>
+      <div class="cap">B and D beat the group average and get reinforced · A and C fall below it and get discouraged</div>
+    </div>
+    <p>The advantage of doing it this way: you never need to know what a "good" absolute score looks like in isolation — you only need several attempts at the same problem to compare against each other.</p>
+  </section>
+
+  <!-- STOP 5 -->
+  <section class="stop">
+    <div class="stop-badge">5</div>
+    <div class="kicker">back to the original problem — grading every step</div>
+    <h2>What if we scored each step, not just the ending?</h2>
+    <p>A <strong>process reward</strong> looks at the reasoning chain itself, not just where it lands. The simplest version — an <strong>isolated</strong> step reward — takes each step on its own and asks: is this one statement correct, by itself?</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 110" xmlns="http://www.w3.org/2000/svg">
+        <line x1="30" y1="55" x2="610" y2="55" stroke="#DCCFAF" stroke-width="1.5"/>
+        <g font-family="IBM Plex Mono" font-size="11" fill="#57596b" text-anchor="middle">
+          <circle cx="80" cy="55" r="6" fill="#3E7C59"/><text x="80" y="80">step 1</text><text x="80" y="30" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="240" cy="55" r="6" fill="#3E7C59"/><text x="240" y="80">step 2</text><text x="240" y="30" fill="#3E7C59">✓ 8/10</text>
+          <circle cx="400" cy="55" r="6" fill="#3E7C59"/><text x="400" y="80">step 3</text><text x="400" y="30" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="560" cy="55" r="6" fill="#3E7C59"/><text x="560" y="80">step 4</text><text x="560" y="30" fill="#3E7C59">✓ 9/10</text>
+        </g>
+      </svg>
+      <div class="cap">each dot is judged completely on its own — no memory of the others</div>
+    </div>
+    <p>This already catches more than an outcome-only reward: a step with bad arithmetic gets caught right where it happens, instead of only at the very end.</p>
+  </section>
+
+  <!-- STOP 6 -->
+  <section class="stop">
+    <div class="stop-badge">6</div>
+    <div class="kicker">the blind spot</div>
+    <h2>Every step can look fine — and the chain still goes nowhere</h2>
+    <p>Because an isolated judge never sees what came before, it can't notice when a step is technically correct <em>but disconnected from the actual problem</em> — repeating itself, drifting sideways, or quietly answering a different question. Locally each move looks clean. Read top to bottom, the reasoning is lost.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 110" xmlns="http://www.w3.org/2000/svg">
+        <line x1="30" y1="55" x2="610" y2="55" stroke="#DCCFAF" stroke-width="1.5"/>
+        <g font-family="IBM Plex Mono" font-size="11" text-anchor="middle">
+          <circle cx="80" cy="55" r="6" fill="#3E7C59"/><text x="80" y="80" fill="#57596b">step 1</text><text x="80" y="30" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="240" cy="55" r="6" fill="#3E7C59"/><text x="240" y="80" fill="#57596b">step 2</text><text x="240" y="30" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="400" cy="55" r="6" fill="#3E7C59"/><text x="400" y="80" fill="#57596b">step 3, drifts</text><text x="400" y="30" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="560" cy="55" r="6" fill="#3E7C59"/><text x="560" y="80" fill="#57596b">step 4, lost</text><text x="560" y="30" fill="#3E7C59">✓ 9/10</text>
+        </g>
+        <text x="480" y="105" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#AB3B3B">→ final answer: wrong</text>
+      </svg>
+      <div class="cap">the isolated judge gave this chain full marks, step by step, the whole way</div>
+    </div>
+    <p>This is the exact gap a checkpoint of undergrad research on this page is trying to close.</p>
+  </section>
+
+  <!-- STOP 7 -->
+  <section class="stop">
+    <div class="stop-badge">7</div>
+    <div class="kicker">the idea — TAPR</div>
+    <h2>Score the move, given everything said so far</h2>
+    <p>A <strong>transition</strong> reward shows the judge the whole chain up to that point, then asks a sharper question: <em>given all of this, does the next move actually follow?</em> Not "is this sentence true on its own" — but "does this specific move earn its place in this specific chain?" That's <strong>TAPR</strong>: Transition-Aware Process Reward.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 640 130" xmlns="http://www.w3.org/2000/svg">
+        <line x1="30" y1="60" x2="610" y2="60" stroke="#DCCFAF" stroke-width="1.5"/>
+        <g font-family="IBM Plex Mono" font-size="11" text-anchor="middle">
+          <circle cx="80" cy="60" r="6" fill="#3E7C59"/><text x="80" y="85" fill="#57596b">step 1</text><text x="80" y="35" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="240" cy="60" r="6" fill="#3E7C59"/><text x="240" y="85" fill="#57596b">step 2</text><text x="240" y="35" fill="#3E7C59">✓ 9/10</text>
+          <circle cx="400" cy="60" r="6" fill="#AB3B3B"/><text x="400" y="85" fill="#57596b">step 3, drifts</text><text x="400" y="35" fill="#AB3B3B">✕ 3/10</text>
+          <circle cx="560" cy="60" r="6" fill="#AB3B3B"/><text x="560" y="85" fill="#57596b">step 4, lost</text><text x="560" y="35" fill="#AB3B3B">✕ 2/10</text>
+        </g>
+        <path d="M86 60 H234" stroke="#8a8c9c" stroke-width="1" stroke-dasharray="2 3"/>
+        <path d="M246 60 H394" stroke="#8a8c9c" stroke-width="1" stroke-dasharray="2 3"/>
+        <path d="M406 60 H554" stroke="#8a8c9c" stroke-width="1" stroke-dasharray="2 3"/>
+        <text x="480" y="120" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#3E7C59">→ catches the drift right where it starts</text>
+      </svg>
+      <div class="cap">the judge now sees the dashed line back to every earlier step before scoring the next one</div>
+    </div>
+    <div class="note"><strong>Where this actually stands:</strong> the first real test of this idea produced a null result — the transition judge didn't clearly beat the simple one yet. That's not a failure of the page you're reading, it's what an honest first checkpoint in research usually looks like: a flawed test, a real lesson about how to test it properly, and a clearer next experiment.</div>
+  </section>
+
+</main>
+
+<!-- ============ CLOSING ============ -->
+<footer class="closing">
+  <div class="wrap">
+    <h2>The words, all in one place</h2>
+    <dl class="glossary">
+      <div><dt>Reinforcement learning (RL)</dt><dd>try → get a reward → adjust → try again</dd></div>
+      <div><dt>Reward</dt><dd>a number telling the model how good an attempt was</dd></div>
+      <div><dt>Policy</dt><dd>the model's current way of acting — what it does, given a prompt</dd></div>
+      <div><dt>LoRA</dt><dd>train a small adapter instead of the whole frozen model</dd></div>
+      <div><dt>GRPO</dt><dd>score a group of attempts at the same question, compare each to the group average</dd></div>
+      <div><dt>Outcome reward</dt><dd>credit based only on the final answer</dd></div>
+      <div><dt>Process reward</dt><dd>credit based on the reasoning steps themselves</dd></div>
+      <div><dt>Transition (TAPR)</dt><dd>score a step given everything the chain has said so far</dd></div>
+    </dl>
+    <p>If you want to see what actually happened when this idea was tested — the numbers, what went wrong, and what's being tried next — it's written up in full.</p>
+    <div class="links">
+      <a href="https://harshraj1607.github.io/TAPR/" target="_blank" rel="noopener">Read the write-up</a>
+      <a href="https://harshraj1607.github.io/TAPR/appendix.html" target="_blank" rel="noopener">Technical appendix</a>
+      <a href="https://github.com/HarshRaj1607/TAPR" target="_blank" rel="noopener">Code & data</a>
+    </div>
+    <div class="signoff">Harsh Raj — B.E. CSE, Ramaiah Institute of Technology · independent research, no lab affiliation</div>
+  </div>
+</footer>
+
+</body>
+</html>
